@@ -32,4 +32,4 @@ Este proyecto está orientado a aprender **Spec Driven Development** (ver `READM
 - **No mutar `MAZE`**: Siempre usar la copia de `createGame()`. Comer un punto pone `grid[y][x] = 0`.
 - **Túnel especial**: La lógica de wrap está condicionada por `TUNNEL_ROW`.
 - **Puerta exclusiva**: La celda tipo `3` bloquea a Pacman pero **no** a los fantasmas.
-- **Movimiento fraccionario**: Los giros, decisiones y paradas dependen de `aligned()` por las velocidades fraccionarias por frame.
+- **Movimiento fraccionario**: Los giros, decisiones y paradas dependen de `aligned()` por las velocidades fraccionarias por frame
