@@ -53,6 +53,7 @@ function createGame() {
     mode: 'scatter',
     modeTimer: MODE_SCHEDULE[0].time,
     modeIndex: 0,
+    ghostHouseExitTimer: 60, // ~1 segundo para salir de la casa
     pacman: {
       x: PACMAN_START.x,
       y: PACMAN_START.y,
@@ -66,6 +67,7 @@ function createGame() {
       dir: 'up',
       speed: GHOST_SPEED,
       type: GHOST_ROLES[i] || 'blinky',
+      inHouse: true,
     })),
   };
 }
@@ -199,6 +201,40 @@ function getTarget(game, g, index) {
 
 function decideGhost(game, g, index) {
   const grid = game.grid;
+
+  // Mientras esté en la casa, forzar salida hacia arriba tras liberación
+  if (g.inHouse) {
+    const options = Object.keys(DIRS).filter(
+      (dir) => dir !== OPPOSITE[g.dir] && canMove(grid, g.x, g.y, dir, 'ghost')
+    );
+    const choices = options.length ? options : ['' + OPPOSITE[g.dir]];
+
+    // Priorizar subir hacia la puerta
+    if (choices.includes('up') && canMove(grid, g.x, g.y, 'up', 'ghost')) {
+      g.dir = 'up';
+      return;
+    }
+
+    // Si no puede subir, elegir la que más se acerque a salir (hacia y menor)
+    let best = choices[0];
+    let bestDist = Infinity;
+    const gx = Math.round(g.x);
+    const gy = Math.round(g.y);
+    for (const dir of choices) {
+      const d = DIRS[dir];
+      const nx = gx + d.x;
+      const ny = gy + d.y;
+      // Preferir subir (menor y)
+      const dist = (gy - ny) * 10 + Math.abs(nx - gx);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = dir;
+      }
+    }
+    g.dir = best;
+    return;
+  }
+
   const options = Object.keys(DIRS).filter(
     (dir) => dir !== OPPOSITE[g.dir] && canMove(grid, g.x, g.y, dir, 'ghost')
   );
@@ -215,7 +251,7 @@ function decideGhost(game, g, index) {
     const d = DIRS[dir];
     const nx = gx + d.x;
     const ny = gy + d.y;
-    // Usar distancia Euclídea/cuadrada o Manhattan; Manhattan es fiel al original
+    // Usar distancia Manhattan; fiel al original
     const dist = Math.abs(nx - target.x) + Math.abs(ny - target.y);
     if (dist < bestDist) {
       bestDist = dist;
@@ -232,18 +268,41 @@ function moveGhost(game, g, index) {
   if (aligned(g.x) && aligned(g.y)) {
     g.x = Math.round(g.x);
     g.y = Math.round(g.y);
+    // Liberar todos tras temporizador al iniciar partida
+    if (game.ghostHouseExitTimer !== undefined && game.ghostHouseExitTimer <= 0 && g.inHouse) {
+      g.inHouse = false;
+    }
     decideGhost(game, g, index);
     if (!canMove(grid, g.x, g.y, g.dir, 'ghost')) return;
+    // Detectar salida de casa (sube por encima de la puerta)
+    if (g.inHouse && g.y < 12) {
+      g.inHouse = false;
+    }
   }
 
   const d = DIRS[g.dir];
   g.x += d.x * g.speed;
   g.y += d.y * g.speed;
   wrapTunnel(g, width);
+  // Detectar salida también durante movimiento
+  if (g.inHouse && Math.round(g.y) < 12) {
+    g.inHouse = false;
+  }
 }
 
 function updateMode(game) {
   if (game.state !== 'playing') return;
+  if (game.ghostHouseExitTimer !== undefined && game.ghostHouseExitTimer > 0) {
+    game.ghostHouseExitTimer--;
+    if (game.ghostHouseExitTimer <= 0) {
+      // Liberar todos los fantasmas tras ~1 segundo
+      if (game.ghosts) {
+        game.ghosts.forEach((g) => {
+          if (g.inHouse) g.inHouse = false;
+        });
+      }
+    }
+  }
   game.modeTimer--;
   if (game.modeTimer <= 0) {
     game.modeIndex++;
@@ -268,11 +327,15 @@ function resetPositions(game) {
     g.x = GHOST_STARTS[i].x;
     g.y = GHOST_STARTS[i].y;
     g.dir = 'up';
+    g.inHouse = true;
   });
-  // Resetear modo
+  // Resetear modo y temporizador de salida
   game.mode = 'scatter';
   game.modeIndex = 0;
   game.modeTimer = MODE_SCHEDULE[0].time;
+  if (game.ghostHouseExitTimer !== undefined) {
+    game.ghostHouseExitTimer = 60;
+  }
 }
 
 function collides(a, b) {
