@@ -42,7 +42,7 @@ function createGame() {
   grid[PACMAN_START.y][PACMAN_START.x] = 0;
 
   let dots = 0;
-  for (const row of grid) for (const v of row) if (v === 2) dots++;
+  for (const row of grid) for (const v of row) if (v === 2 || v === 4) dots++;
 
   return {
     state: 'start',
@@ -54,6 +54,9 @@ function createGame() {
     modeTimer: MODE_SCHEDULE[0].time,
     modeIndex: 0,
     ghostHouseExitTimer: 60, // ~1 segundo para salir de la casa
+    frightenedTimer: 0,
+    frightenedDuration: 420, // ~7 segundos a 60fps
+    ghostsEatenInFright: 0,
     pacman: {
       x: PACMAN_START.x,
       y: PACMAN_START.y,
@@ -68,6 +71,8 @@ function createGame() {
       speed: GHOST_SPEED,
       type: GHOST_ROLES[i] || 'blinky',
       inHouse: true,
+      frightened: false,
+      eaten: false,
     })),
   };
 }
@@ -120,11 +125,25 @@ function movePacman(game) {
       p.dir = p.nextDir;
       p.nextDir = null;
     }
-    // Comer dot.
+    // Comer dot o power pellet.
     if (grid[p.y][p.x] === 2) {
       grid[p.y][p.x] = 0;
       game.score += 10;
       game.dotsRemaining--;
+    } else if (grid[p.y][p.x] === 4) {
+      grid[p.y][p.x] = 0;
+      game.score += 50;
+      game.dotsRemaining--;
+      // Activar modo frightened
+      game.frightenedTimer = game.frightenedDuration || 420;
+      game.ghostsEatenInFright = 0;
+      if (game.ghosts) {
+        game.ghosts.forEach((g) => {
+          if (!g.eaten) {
+            g.frightened = true;
+          }
+        });
+      }
     }
     // Si no puede seguir, se detiene en la celda.
     if (!canMove(grid, p.x, p.y, p.dir, 'pacman')) return;
@@ -202,6 +221,52 @@ function getTarget(game, g, index) {
 function decideGhost(game, g, index) {
   const grid = game.grid;
 
+  // Fantasma comido ("ojos"): volver a casa
+  if (g.eaten) {
+    const homeX = 13;
+    const homeY = 14;
+    const gx = Math.round(g.x);
+    const gy = Math.round(g.y);
+    // Si ya está en casa, renacer
+    if (gx === homeX && gy === homeY && aligned(g.x) && aligned(g.y)) {
+      g.eaten = false;
+      g.frightened = false;
+      g.inHouse = true;
+      g.dir = 'up';
+      // Aplicar lógica de salida
+    }
+    const options = Object.keys(DIRS).filter(
+      (dir) => dir !== OPPOSITE[g.dir] && canMove(grid, g.x, g.y, dir, 'ghost')
+    );
+    const choices = options.length ? options : ['' + OPPOSITE[g.dir]];
+    let best = choices[0];
+    let bestDist = Infinity;
+    for (const dir of choices) {
+      const d = DIRS[dir];
+      const nx = gx + d.x;
+      const ny = gy + d.y;
+      const dist = Math.abs(nx - homeX) + Math.abs(ny - homeY);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = dir;
+      }
+    }
+    g.dir = best;
+    return;
+  }
+
+  // Fantasma vulnerable
+  if (g.frightened && !g.eaten) {
+    const options = Object.keys(DIRS).filter(
+      (dir) => dir !== OPPOSITE[g.dir] && canMove(grid, g.x, g.y, dir, 'ghost')
+    );
+    const choices = options.length ? options : ['' + OPPOSITE[g.dir]];
+    // Elegir aleatoriamente entre opciones válidas
+    const randIdx = Math.floor(Math.random() * choices.length);
+    g.dir = choices[randIdx];
+    return;
+  }
+
   // Mientras esté en la casa, forzar salida hacia arriba tras liberación
   if (g.inHouse) {
     const options = Object.keys(DIRS).filter(
@@ -269,13 +334,13 @@ function moveGhost(game, g, index) {
     g.x = Math.round(g.x);
     g.y = Math.round(g.y);
     // Liberar todos tras temporizador al iniciar partida
-    if (game.ghostHouseExitTimer !== undefined && game.ghostHouseExitTimer <= 0 && g.inHouse) {
+    if (game.ghostHouseExitTimer !== undefined && game.ghostHouseExitTimer <= 0 && g.inHouse && !g.eaten) {
       g.inHouse = false;
     }
     decideGhost(game, g, index);
     if (!canMove(grid, g.x, g.y, g.dir, 'ghost')) return;
     // Detectar salida de casa (sube por encima de la puerta)
-    if (g.inHouse && g.y < 12) {
+    if (g.inHouse && !g.eaten && g.y < 12) {
       g.inHouse = false;
     }
   }
@@ -285,7 +350,7 @@ function moveGhost(game, g, index) {
   g.y += d.y * g.speed;
   wrapTunnel(g, width);
   // Detectar salida también durante movimiento
-  if (g.inHouse && Math.round(g.y) < 12) {
+  if (g.inHouse && !g.eaten && Math.round(g.y) < 12) {
     g.inHouse = false;
   }
 }
@@ -298,8 +363,24 @@ function updateMode(game) {
       // Liberar todos los fantasmas tras ~1 segundo
       if (game.ghosts) {
         game.ghosts.forEach((g) => {
-          if (g.inHouse) g.inHouse = false;
+          if (g.inHouse && !g.eaten) g.inHouse = false;
         });
+      }
+    }
+  }
+  // Frightened timer
+  if (game.frightenedTimer !== undefined && game.frightenedTimer > 0) {
+    game.frightenedTimer--;
+    if (game.frightenedTimer <= 0) {
+      if (game.ghosts) {
+        game.ghosts.forEach((g) => {
+          if (!g.eaten) {
+            g.frightened = false;
+          }
+        });
+      }
+      if (game.ghostsEatenInFright !== undefined) {
+        game.ghostsEatenInFright = 0;
       }
     }
   }
@@ -323,18 +404,28 @@ function resetPositions(game) {
   p.y = PACMAN_START.y;
   p.dir = 'left';
   p.nextDir = null;
-  game.ghosts.forEach((g, i) => {
-    g.x = GHOST_STARTS[i].x;
-    g.y = GHOST_STARTS[i].y;
-    g.dir = 'up';
-    g.inHouse = true;
-  });
+  if (game.ghosts) {
+    game.ghosts.forEach((g, i) => {
+      g.x = GHOST_STARTS[i].x;
+      g.y = GHOST_STARTS[i].y;
+      g.dir = 'up';
+      g.inHouse = true;
+      g.frightened = false;
+      g.eaten = false;
+    });
+  }
   // Resetear modo y temporizador de salida
   game.mode = 'scatter';
   game.modeIndex = 0;
   game.modeTimer = MODE_SCHEDULE[0].time;
   if (game.ghostHouseExitTimer !== undefined) {
     game.ghostHouseExitTimer = 60;
+  }
+  if (game.frightenedTimer !== undefined) {
+    game.frightenedTimer = 0;
+  }
+  if (game.ghostsEatenInFright !== undefined) {
+    game.ghostsEatenInFright = 0;
   }
 }
 
@@ -345,10 +436,36 @@ function collides(a, b) {
 function update(game) {
   updateMode(game);
   movePacman(game);
-  game.ghosts.forEach((g, i) => moveGhost(game, g, i));
+  if (game.ghosts) {
+    game.ghosts.forEach((g, i) => moveGhost(game, g, i));
+  }
 
-  for (const g of game.ghosts) {
-    if (collides(game.pacman, g)) {
+  if (game.ghosts) {
+    for (const g of game.ghosts) {
+      if (!collides(game.pacman, g)) continue;
+      if (g.frightened && !g.eaten) {
+        // Comer fantasma
+        if (game.ghostsEatenInFright === undefined) game.ghostsEatenInFright = 0;
+        game.ghostsEatenInFright++;
+        const points = 200 * Math.pow(2, game.ghostsEatenInFright - 1);
+        game.score += points;
+        g.eaten = true;
+        g.frightened = false;
+        // Enviar a casa
+        const idx = game.ghosts.indexOf(g);
+        if (idx >= 0 && GHOST_STARTS[idx]) {
+          g.x = GHOST_STARTS[idx].x;
+          g.y = GHOST_STARTS[idx].y;
+        } else {
+          g.x = 13;
+          g.y = 14;
+        }
+        g.inHouse = true;
+        g.dir = 'up';
+        continue;
+      }
+      if (g.eaten) continue;
+      // Normal -> matar pacman
       game.lives--;
       if (game.lives <= 0) {
         game.state = 'lost';
