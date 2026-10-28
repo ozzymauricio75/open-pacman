@@ -1,6 +1,6 @@
 # SPEC 04 — Fix: ojos y fantasmas que salen del mapa y no regresan a la pen
 
-> **Estado:** Approved
+> **Estado:** Implemented
 > **Depende de:** SPEC 03 — Power pellets y modo asustado
 > **Fecha:** 2026-06-30
 > **Objetivo:** Corregir el comportamiento de los fantasmas tras ser comidos en modo asustado, sustituyendo la navegación de ojos por un teleport directo a su celda de inicio para que re-exiten como `chase`, eliminando los bugs de salirse del mapa y de no regresar a la pen. Además, corregir el comportamiento de los fantasmas que salen del mapa y no regresan a la pen.
