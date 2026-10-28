@@ -1,6 +1,6 @@
 # SPEC 02 — Salida rápida de los fantasmas al iniciar la partida
 
-**Estado:** Implement  
+**Estado:** Implemented  
 **Depende de:** Ninguno  
 **Fecha:** 2026-10-27  
 

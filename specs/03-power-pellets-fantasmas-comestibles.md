@@ -1,6 +1,6 @@
 # SPEC 03 — Power Pellets y fantasmas comestibles
 
-**Estado:** Aprobado  
+**Estado:** Implemented  
 **Depende de:** Ninguno  
 **Fecha:** 2026-10-27  
 

@@ -449,9 +449,6 @@ function update(game) {
         game.ghostsEatenInFright++;
         const points = 200 * Math.pow(2, game.ghostsEatenInFright - 1);
         game.score += points;
-        g.eaten = true;
-        g.frightened = false;
-        // Enviar a casa
         const idx = game.ghosts.indexOf(g);
         if (idx >= 0 && GHOST_STARTS[idx]) {
           g.x = GHOST_STARTS[idx].x;
@@ -460,8 +457,10 @@ function update(game) {
           g.x = 13;
           g.y = 14;
         }
-        g.inHouse = true;
         g.dir = 'up';
+        g.frightened = false;
+        g.eaten = false;
+        g.inHouse = true;
         continue;
       }
       if (g.eaten) continue;

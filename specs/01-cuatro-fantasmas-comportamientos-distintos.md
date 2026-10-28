@@ -1,6 +1,6 @@
 # SPEC 01 — Cuatro fantasmas con comportamientos distintos (Clásico Namco)
 
-**Estado:** Implement  
+**Estado:** Implemented 
 **Depende de:** Ninguno  
 **Fecha:** 2026-10-27  
 **Objetivo:** Implementar los 4 fantasmas con comportamientos distintos siguiendo el esquema clásico Namco (Blinky, Pinky, Inky, Clyde), con Blinky persiguiendo agresivamente a Pac-Man (modo chase permanente), manteniendo el sistema global scatter/chase, asignando colores distintos a cada uno y sin implementar el modo frightened en esta spec.
