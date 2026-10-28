@@ -1,5 +1,9 @@
 # SPEC 02 — Salida rápida de los fantasmas al iniciar la partida
 
+**Estado:** Implement  
+**Depende de:** Ninguno  
+**Fecha:** 2026-10-27  
+
 ## Objetivo
 Hacer que los 4 fantasmas salgan de la casa fantasma mucho antes al iniciar el juego. En lugar de quedarse atrapados/estancados, deben empezar a moverse y salir al mapa aproximadamente **1 segundo después** de iniciar la partida.
 

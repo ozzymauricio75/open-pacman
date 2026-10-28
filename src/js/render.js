@@ -66,16 +66,42 @@ function drawDoor( ctx, grid ) {
   ctx.stroke();
 }
 
-function drawDots( ctx, grid ) {
+function drawDots( ctx, grid, frame ) {
   ctx.fillStyle = DOT_COLOR;
   for ( let y = 0; y < grid.length; y++ ) {
     for ( let x = 0; x < grid[ 0 ].length; x++ ) {
-      if ( grid[ y ][ x ] !== 2 ) continue;
-      const { cx, cy } = cellCenter( x, y );
-      ctx.beginPath();
-      ctx.arc( cx, cy, 2.5, 0, Math.PI * 2 );
-      ctx.fill();
+      if ( grid[ y ][ x ] === 2 ) {
+        const { cx, cy } = cellCenter( x, y );
+        ctx.beginPath();
+        ctx.arc( cx, cy, 2.5, 0, Math.PI * 2 );
+        ctx.fill();
+      } else if ( grid[ y ][ x ] === 4 ) {
+        // Power pellet parpadeante
+        if ( frame % 16 < 8 ) {
+          const { cx, cy } = cellCenter( x, y );
+          ctx.beginPath();
+          ctx.arc( cx, cy, 6.5, 0, Math.PI * 2 );
+          ctx.fill();
+        }
+      }
     }
+  }
+}
+
+function drawGhostEyes( ctx, g ) {
+  const { cx, cy } = cellCenter( g.x, g.y );
+  const dir = (typeof DIRS !== 'undefined' && DIRS[ g.dir ]) ? DIRS[ g.dir ] : { x: 0, y: 0 };
+  const ex = dir.x * 1.6;
+  const ey = dir.y * 1.6;
+  for ( const off of [ -3.5, 3.5 ] ) {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc( cx + off, cy - 1, 3, 0, Math.PI * 2 );
+    ctx.fill();
+    ctx.fillStyle = '#0000bb';
+    ctx.beginPath();
+    ctx.arc( cx + off + ex, cy - 1 + ey, 1.5, 0, Math.PI * 2 );
+    ctx.fill();
   }
 }
 
@@ -162,12 +188,27 @@ function draw( ctx, game, frame ) {
 
   drawWalls( ctx, grid );
   drawDoor( ctx, grid );
-  drawDots( ctx, grid );
+  drawDots( ctx, grid, frame );
   drawPacman( ctx, game.pacman, frame );
-  game.ghosts.forEach( ( g, i ) => {
-    const color = g.type && GHOST_COLORS[ g.type ] ? GHOST_COLORS[ g.type ] : ( GHOST_COLORS_BY_INDEX[ i ] || '#ff0000' );
-    drawGhost( ctx, g, color );
-  } );
+  if (game.ghosts) {
+    game.ghosts.forEach( ( g, i ) => {
+      if (g.eaten) {
+        drawGhostEyes( ctx, g );
+        return;
+      }
+      if (g.frightened) {
+        // Parpadear en los últimos ~60 frames
+        let color = '#2121ff';
+        if (game.frightenedTimer !== undefined && game.frightenedTimer < 60 && frame % 10 < 5) {
+          color = '#ffffff';
+        }
+        drawGhost( ctx, g, color );
+        return;
+      }
+      const color = g.type && GHOST_COLORS[ g.type ] ? GHOST_COLORS[ g.type ] : ( GHOST_COLORS_BY_INDEX[ i ] || '#ff0000' );
+      drawGhost( ctx, g, color );
+    } );
+  }
   drawHUD( ctx, game, W );
 }
 
