@@ -221,37 +221,20 @@ function getTarget(game, g, index) {
 function decideGhost(game, g, index) {
   const grid = game.grid;
 
-  // Fantasma comido ("ojos"): volver a casa
+  // Fantasma comido ("ojos"): deshabilitado por teleport directo
   if (g.eaten) {
-    const homeX = 13;
-    const homeY = 14;
-    const gx = Math.round(g.x);
-    const gy = Math.round(g.y);
-    // Si ya está en casa, renacer
-    if (gx === homeX && gy === homeY && aligned(g.x) && aligned(g.y)) {
-      g.eaten = false;
-      g.frightened = false;
-      g.inHouse = true;
-      g.dir = 'up';
-      // Aplicar lógica de salida
+    const idx = game.ghosts ? game.ghosts.indexOf(g) : -1;
+    if (idx >= 0 && GHOST_STARTS[idx]) {
+      g.x = GHOST_STARTS[idx].x;
+      g.y = GHOST_STARTS[idx].y;
+    } else {
+      g.x = 13;
+      g.y = 14;
     }
-    const options = Object.keys(DIRS).filter(
-      (dir) => dir !== OPPOSITE[g.dir] && canMove(grid, g.x, g.y, dir, 'ghost')
-    );
-    const choices = options.length ? options : ['' + OPPOSITE[g.dir]];
-    let best = choices[0];
-    let bestDist = Infinity;
-    for (const dir of choices) {
-      const d = DIRS[dir];
-      const nx = gx + d.x;
-      const ny = gy + d.y;
-      const dist = Math.abs(nx - homeX) + Math.abs(ny - homeY);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = dir;
-      }
-    }
-    g.dir = best;
+    g.eaten = false;
+    g.frightened = false;
+    g.inHouse = true;
+    g.dir = 'up';
     return;
   }
 
@@ -352,6 +335,21 @@ function moveGhost(game, g, index) {
   // Detectar salida también durante movimiento
   if (g.inHouse && !g.eaten && Math.round(g.y) < 12) {
     g.inHouse = false;
+  }
+  // Corregir fantasmas que salen del mapa
+  if (g.x < 0 || g.x > 27 || g.y < 0 || g.y > 31) {
+    const idx = game.ghosts ? game.ghosts.indexOf(g) : -1;
+    if (idx >= 0 && GHOST_STARTS[idx]) {
+      g.x = GHOST_STARTS[idx].x;
+      g.y = GHOST_STARTS[idx].y;
+    } else {
+      g.x = 13;
+      g.y = 14;
+    }
+    g.dir = 'up';
+    g.frightened = false;
+    g.eaten = false;
+    g.inHouse = true;
   }
 }
 
